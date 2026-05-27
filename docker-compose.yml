@@ -1,0 +1,93 @@
+# ════════════════════════════════════════════════════════════════
+# 查帳憑證核對系統 — Docker Compose
+# ════════════════════════════════════════════════════════════════
+# 開發：在 Windows 上 docker compose up
+# 部署：scp 整個資料夾到 Linux 主機後 docker compose up -d
+# ════════════════════════════════════════════════════════════════
+
+services:
+  # ─────────────────────────────────────────────────────────────
+  # PostgreSQL 資料庫
+  # ─────────────────────────────────────────────────────────────
+  db:
+    image: postgres:16-alpine
+    container_name: audit-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-audit_db}
+      POSTGRES_USER: ${POSTGRES_USER:-audit_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-AuditServer2026!Strong#}
+      TZ: Asia/Taipei
+    volumes:
+      - db_data:/var/lib/postgresql/data
+      - ./db/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+      - ./db/seed.sql:/docker-entrypoint-initdb.d/02-seed.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-audit_user} -d ${POSTGRES_DB:-audit_db}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - audit_net
+    # 預設只在內部網路（資料庫不對外暴露）
+    # 如果要從本機 DBeaver/pgAdmin 連，取消下方註解：
+    # ports:
+    #   - "5432:5432"
+
+  # ─────────────────────────────────────────────────────────────
+  # Node.js 後端 + 前端
+  # ─────────────────────────────────────────────────────────────
+  app:
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+    container_name: audit-app
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      NODE_ENV: ${NODE_ENV:-production}
+      PORT: 3000
+      # 改用分開的環境變數（避免密碼含特殊字元 # ! @ 在 URL 中被誤判）
+      PGHOST: db
+      PGPORT: 5432
+      PGDATABASE: ${POSTGRES_DB:-audit_db}
+      PGUSER: ${POSTGRES_USER:-audit_user}
+      PGPASSWORD: ${POSTGRES_PASSWORD:-AuditServer2026!Strong#}
+      FILE_STORAGE_PATH: /app/files
+      JWT_SECRET: ${JWT_SECRET:-change-this-to-a-random-string-in-production-please-make-it-long}
+      ADMIN_INITIAL_PASSWORD: ${ADMIN_INITIAL_PASSWORD:-admin123}
+      TZ: Asia/Taipei
+    volumes:
+      - app_files:/app/files
+    ports:
+      - "${APP_PORT:-3000}:3000"
+    networks:
+      - audit_net
+
+  # ─────────────────────────────────────────────────────────────
+  # Cloudflare Tunnel（外網存取）
+  # ─────────────────────────────────────────────────────────────
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    container_name: audit-cloudflared
+    restart: unless-stopped
+    command: tunnel --no-autoupdate --url http://app:3000
+    depends_on:
+      - app
+    networks:
+      - audit_net
+
+# ─────────────────────────────────────────────────────────────
+# Persistent volumes
+# ─────────────────────────────────────────────────────────────
+volumes:
+  db_data:
+    driver: local
+  app_files:
+    driver: local
+
+networks:
+  audit_net:
+    driver: bridge

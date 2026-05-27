@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>查帳憑證核對系統</title>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: "微軟正黑體", "Microsoft JhengHei", sans-serif;
+  background: linear-gradient(135deg, #3a1f08 0%, #4a1d05 50%, #2a1003 100%);
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #3a1f08;
+}
+
+.login-card {
+  background: #fff7ec;
+  border: 2px solid #d4a258;
+  border-radius: 18px;
+  box-shadow: 0 20px 60px rgba(0,0,0,.5), inset 0 0 0 1px rgba(212,162,88,.25);
+  padding: 48px 44px 40px;
+  width: 420px;
+  max-width: 94vw;
+  text-align: center;
+  position: relative;
+}
+
+.login-card::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, #d4a258, transparent);
+  border-radius: 18px 18px 0 0;
+}
+
+.login-logo {
+  font-size: 48px;
+  margin-bottom: 12px;
+}
+
+.login-title {
+  font-size: 22px;
+  font-weight: 900;
+  color: #3a1f08;
+  margin-bottom: 6px;
+  letter-spacing: 1px;
+}
+
+.login-sub {
+  font-size: 13px;
+  color: #8a6e4a;
+  margin-bottom: 36px;
+}
+
+.form-group {
+  text-align: left;
+  margin-bottom: 20px;
+}
+
+.form-group label {
+  display: block;
+  font-size: 13px;
+  font-weight: 800;
+  color: #5b2c0c;
+  margin-bottom: 7px;
+}
+
+.form-group .optional {
+  font-size: 11px;
+  color: #a08866;
+  font-weight: 400;
+  margin-left: 4px;
+}
+
+.form-group input {
+  width: 100%;
+  padding: 11px 14px;
+  border: 2px solid #f0d9b0;
+  border-radius: 9px;
+  font-size: 15px;
+  font-family: inherit;
+  outline: none;
+  transition: border-color .15s, box-shadow .15s;
+  color: #3a1f08;
+  background: #fffaf1;
+  font-weight: 600;
+}
+
+.form-group input:focus {
+  border-color: #4a1d05;
+  background: #fff;
+  box-shadow: 0 0 0 3px rgba(91,44,12,.15);
+}
+
+.form-group input::placeholder {
+  color: #a08866;
+  font-weight: 500;
+}
+
+.divider {
+  border: none;
+  border-top: 1px solid #f0d9b0;
+  margin: 28px 0 24px;
+}
+
+.login-btn {
+  width: 100%;
+  padding: 14px;
+  background: #4a1d05;
+  color: #f4d896;
+  border: 2px solid #d4a258;
+  border-radius: 10px;
+  font-size: 16px;
+  font-family: inherit;
+  font-weight: 800;
+  cursor: pointer;
+  letter-spacing: 1px;
+  transition: background .18s, color .18s, border-color .18s, transform .12s;
+  box-shadow: 0 4px 14px rgba(91,44,12,.35);
+}
+
+.login-btn:hover {
+  background: #f4d896;
+  color: #4a1d05;
+  border-color: #4a1d05;
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(91,44,12,.4);
+}
+
+.login-btn:active {
+  transform: translateY(0);
+}
+
+.login-footer {
+  margin-top: 24px;
+  font-size: 11px;
+  color: #a08866;
+}
+</style>
+</head>
+<body>
+
+<div class="login-card">
+  <div class="login-logo">📋</div>
+  <div class="login-title">查帳憑證核對系統</div>
+  <div class="login-sub">請輸入帳號密碼登入</div>
+
+  <div class="form-group">
+    <label>帳號</label>
+    <input type="text" id="loginUser" placeholder="請輸入帳號" autocomplete="username" autofocus>
+  </div>
+
+  <div class="form-group">
+    <label>密碼</label>
+    <input type="password" id="loginPass" placeholder="請輸入密碼" autocomplete="current-password">
+  </div>
+
+  <div id="loginError" style="color:#b91c1c;font-size:13px;margin-top:8px;display:none;font-weight:700"></div>
+
+  <hr class="divider">
+
+  <button class="login-btn" id="loginBtn" onclick="doLogin()">🔐 進入系統</button>
+
+  <div class="login-footer">📂 本系統資料儲存於公司內部伺服器</div>
+</div>
+
+<script>
+// Enter 鍵登入
+document.addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
+
+// 已登入則自動跳主頁
+try {
+  const tk = localStorage.getItem('audit_token');
+  if (tk) {
+    fetch('/api/auth/me', { headers: { Authorization: 'Bearer ' + tk } })
+      .then(r => r.ok ? r.json() : null)
+      .then(d => { if (d && d.user) window.location.href = '/app'; })
+      .catch(() => {});
+  }
+} catch(e) {}
+
+async function doLogin() {
+  const username = document.getElementById('loginUser').value.trim();
+  const password = document.getElementById('loginPass').value;
+  const errEl = document.getElementById('loginError');
+  const btn = document.getElementById('loginBtn');
+  errEl.style.display = 'none';
+  if (!username || !password) {
+    errEl.textContent = '請輸入帳號和密碼';
+    errEl.style.display = 'block';
+    return;
+  }
+  btn.disabled = true; btn.textContent = '登入中...';
+  try {
+    const res = await fetch('/api/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username, password }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || '登入失敗');
+    localStorage.setItem('audit_token', data.token);
+    localStorage.setItem('audit_user', JSON.stringify(data.user));
+    try {
+      const stored = JSON.parse(localStorage.getItem('audit_v4')) || {};
+      stored.auditor = data.user.displayName || data.user.username;
+      localStorage.setItem('audit_v4', JSON.stringify(stored));
+    } catch(_){}
+    window.location.href = '/app';
+  } catch (e) {
+    errEl.textContent = e.message || '登入失敗';
+    errEl.style.display = 'block';
+    btn.disabled = false; btn.textContent = '🔐 進入系統';
+  }
+  return; // 不執行下方舊邏輯
+
+  // 儲存到 localStorage 供主系統讀取（總是覆寫 auditor，空字串也覆寫，讓沒打名字 = 清除舊名字）
+  try {
+    const stored = JSON.parse(localStorage.getItem('audit_v4')) || {};
+    stored.auditor = name;  // 即使是空字串也寫入
+    if (date) stored.auditDate = date;
+    localStorage.setItem('audit_v4', JSON.stringify(stored));
+  } catch(e) {}
+
+  // 同步到每個客戶分頁的 settings（否則切到舊 session 會顯示舊姓名）
+  try {
+    const sessData = JSON.parse(localStorage.getItem('audit_sessions_v3'));
+    if (sessData && Array.isArray(sessData.sessions)) {
+      sessData.sessions.forEach(s => {
+        if (!s.settings) s.settings = {};
+        s.settings.auditor = name;  // 空字串也覆寫
+        if (date) s.settings.auditDate = date;
+      });
+      localStorage.setItem('audit_sessions_v3', JSON.stringify(sessData));
+    }
+  } catch(e) {}
+
+  // 跳轉到主系統
+  window.location.href = 'app.html';
+}
+</script>
+</body>
+</html>

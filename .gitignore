@@ -1,0 +1,25 @@
+# 環境變數（含密碼，絕對不要 commit）
+.env
+
+# Node modules
+node_modules/
+
+# 日誌
+*.log
+npm-debug.log*
+
+# Docker volumes (本機測試)
+db_data/
+app_files/
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# 暫存
+*.tmp
+*.bak
