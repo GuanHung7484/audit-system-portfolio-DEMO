@@ -5261,8 +5261,8 @@ function checkAuditReady() {
 }
 
 // ── Gemini API 設定（透過自己的 Cloudflare Worker Proxy 轉發，Gemini Key 藏在 Worker 裡）──
-// TODO Phase 3：在 Cloudflare Workers 建好自己的 Gemini 代理後，把下方網址換成你的 Worker 網址
-const PROXY_BASE = 'https://YOUR-WORKER.workers.dev';
+// Gemini API 代理（Cloudflare Worker，key 藏在 Worker 環境變數，不外露）
+const PROXY_BASE = 'https://gemini-proxy-demo.playingstocksystem.workers.dev';
 
 // Worker 不需要前端傳 token，直接回傳空字串即可
 async function getProxyToken() {
