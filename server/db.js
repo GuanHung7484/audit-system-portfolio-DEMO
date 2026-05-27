@@ -10,6 +10,10 @@ const pool = new Pool({
   database: process.env.PGDATABASE || process.env.POSTGRES_DB || 'audit_db',
   user:     process.env.PGUSER     || process.env.POSTGRES_USER || 'audit_user',
   password: process.env.PGPASSWORD || process.env.POSTGRES_PASSWORD || '',
+  // Supabase 需要 SSL；本地 Docker 不需要
+  ssl: (process.env.PGHOST || '').includes('supabase')
+    ? { rejectUnauthorized: false }
+    : false,
   max: 20,                  // 最大同時連線
   idleTimeoutMillis: 30000, // 閒置 30 秒關閉
   connectionTimeoutMillis: 5000,

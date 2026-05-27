@@ -5,13 +5,11 @@
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
-const fs = require('fs').promises;
 const bcrypt = require('bcryptjs');
 const { pool, query } = require('./db');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
-const FILE_STORAGE = process.env.FILE_STORAGE_PATH || '/app/files';
 
 // ─── Middleware ──────────────────────────────────────────────
 app.use(cors());
@@ -70,11 +68,6 @@ app.use((err, req, res, next) => {
 
 // ─── 啟動：建立檔案目錄 + 預設 admin + 啟動 server ───────────
 async function startup() {
-  // 建立檔案儲存目錄
-  await fs.mkdir(path.join(FILE_STORAGE, 'vouchers'), { recursive: true });
-  await fs.mkdir(path.join(FILE_STORAGE, 'excel'), { recursive: true });
-  console.log(`[Startup] 檔案儲存：${FILE_STORAGE}`);
-
   // 等資料庫就緒
   let retries = 30;
   while (retries > 0) {
